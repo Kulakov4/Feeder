@@ -8,7 +8,7 @@ Feeding::Feeding(uint8_t number)
     min = EEPROM.read(number * 2 + 1);
     timeWasChanged = false;
     redrawRequired = false;
-    mode = 0;
+    mode = F_VIEW_MODE;
     blink = false;
 };
 
@@ -23,9 +23,10 @@ void Feeding::incHour()
 
 void Feeding::decHour()
 {
-    hour--;
-    if (hour < 0)
+    if (hour == 0)
         hour = 23;
+	else
+		hour--;	
     timeWasChanged = true; // запоминаем, что время изменилось
     redrawRequired = true; // запоминаем, что надо перерисовать экран
 }
@@ -41,9 +42,10 @@ void Feeding::incMin()
 
 void Feeding::decMin()
 {
-    min--;
-    if (min < 0)
+    if (min == 0)
         min = 59;
+	else
+		min--;
     timeWasChanged = true; // запоминаем, что время изменилось
     redrawRequired = true; // запоминаем, что надо перерисовать экран
 }
@@ -91,22 +93,25 @@ void Feeding::print(LCD_1602_RUS *lcd)
     char minTextBuffer[4] = "  ";
 
     // Если часы сейчас не должны мерцать
-    if ((mode != F_EDIT_HOUR_MODE) || !blink)
+	if ((mode != F_EDIT_HOUR_MODE) || (!blink))
         // Преобразуем часы кормления в строку состоящую из 2-х символов
         sprintf(hourTextBuffer, "%02d", hour);
 
     // Если минуты сейчас не должны мерцать
-    if ((mode != F_EDIT_MIN_MODE) || !blink)
+    if ((mode != F_EDIT_MIN_MODE) || (!blink))
         // Преобразуем минуты кормления в строку состоящую из 2-х символов
         sprintf(minTextBuffer, "%02d", min);
 
     // Формируем строку с временем кормления
-    String timeStr = String(hourTextBuffer) + ":" + String(minTextBuffer);
+    String timeStr = String(hourTextBuffer) + ":" + String(minTextBuffer) + "       ";
+
+	String s = "Кормление " + String(n + 1);
 
     lcd->setCursor(0, 0);
-    lcd->print(caption);
-    lcd->setCursor(1, 0);
+    lcd->print(s);
+    lcd->setCursor(0, 1);
     lcd->print(timeStr);
+	redrawRequired = false;
 }
 
 void Feeding::setMode(uint8_t new_mode)
@@ -161,4 +166,30 @@ void Feeding::toggleMode()
         setMode(F_VIEW_MODE);
         break;        
     }
+}
+
+void Feeding::incTime()
+{
+    switch (mode)
+    {
+    case F_EDIT_HOUR_MODE:
+        incHour();
+        break;
+    case F_EDIT_MIN_MODE:
+        incMin();
+        break;        
+    }	
+}
+
+void Feeding::decTime()
+{
+    switch (mode)
+    {
+    case F_EDIT_HOUR_MODE:
+        decHour();
+        break;
+    case F_EDIT_MIN_MODE:
+        decMin();
+        break;        
+    }	
 }

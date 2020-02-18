@@ -13,7 +13,8 @@
 #define F_EDIT_HOUR_MODE  2
 #define F_EDIT_MIN_MODE 3
 
-static const wchar_t *caption = L"Кормление X";
+//static const wchar_t *caption = L"Кормление X";
+static const char *caption = "Кормление X";
 
 class Feeding: public Component
 {
@@ -26,16 +27,18 @@ private:
     bool blink;
     unsigned long startBlinkT;
     uint8_t mode;
-    bool isEditMode();
     void saveHour();
     void saveMin();
-public:
-    Feeding(uint8_t number);
     void incHour();
     void decHour();
     void incMin();
     void decMin();
-    void setMode(uint8_t new_mode);
+    void setMode(uint8_t new_mode);	
+public:
+    Feeding(uint8_t number);
+    bool isEditMode();
+	void incTime();
+	void decTime();	
     void toggleMode();
     bool isRedrawRequired();
     void print(LCD_1602_RUS *lcd);

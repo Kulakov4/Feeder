@@ -39,9 +39,11 @@ void FeedTimer::print(LCD_1602_RUS *lcd)
     sprintf(hourTextBuffer, "%02d", t.hour);    
     sprintf(minTextBuffer, "%02d", t.min); 
     // Формируем строку с текущим временем
-    String timeStr = String(hourTextBuffer) + ":" + String(minTextBuffer);    
+    String timeStr = String(hourTextBuffer) + ":" + String(minTextBuffer) + "      ";    
     lcd->setCursor(0, 0);
-    lcd->print(timeStr);      
+    lcd->print(timeStr); 
+	lcd->setCursor(0, 1);
+	lcd->print("                ");
 }
 
 componentType FeedTimer::getType()

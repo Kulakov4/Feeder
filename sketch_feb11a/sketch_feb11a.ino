@@ -5,11 +5,9 @@
 #include <Feeding.h>
 #include <FeedTimer.h>
 
-#define FEED_AMOUNT 4 // Количество кормлений в сутки
-
 GButton btnMenu(5);
-GButton btnUp(6);
-GButton btnDown(7);
+GButton btnInc(6);
+GButton btnDec(7);
 
 //LiquidCrystal_I2C lcd(0x27, 16, 2);
 LCD_1602_RUS lcd(0x27, 16, 2);   // Устанавливаем дисплей
@@ -18,7 +16,14 @@ const int stepsPerRevolution = 200;   // Количество шагов
 Stepper myStepper(stepsPerRevolution, 8, 9, 10, 11);
 
 DS1302 rtc(2, 3, 4);
-Component c[] = {FeedTimer(&rtc), Feeding(0), Feeding(1), Feeding(2), Feeding(3) };
+
+FeedTimer f = FeedTimer(&rtc);
+Feeding f1 = Feeding(0);
+Feeding f2 = Feeding(1);
+Feeding f3 = Feeding(2);
+Feeding f4 = Feeding(3);
+
+Component* c[5];
 uint8_t ci = 0;
 
 void setup() {
@@ -30,7 +35,11 @@ void setup() {
       EEPROM.write(i * 2 + 1, 0);
     }
   }
-
+  c[0] = &f;
+  c[1] = &f1;
+  c[2] = &f2;
+  c[3] = &f3;
+  c[4] = &f4;
   lcd.init();
   myStepper.setSpeed(60);             // Установка скорости 60 об/мин
   Serial.begin(9600);
@@ -41,22 +50,79 @@ void setup() {
 
   // The following lines can be commented out to use the values already stored in the DS1302
   //  rtc.setDOW(FRIDAY);        // Set Day-of-Week to FRIDAY
-  //  rtc.setTime(21, 46, 0);     // Set the time to 12:00:00 (24hr format)
+  //rtc.setTime(19, 30, 0);     // Set the time to 12:00:00 (24hr format)
   //  rtc.setDate(6, 8, 2010);   // Set the date to August 6th, 2010
+
+  lcd.backlight();// Включаем подсветку дисплея
 }
 
 
 void loop() {
+  btnInc.tick();
+  if (btnInc.isPress())
+  {
+    Serial.println("btnInc.isPress");
+    bool done = false;
+    if (c[ci]->getType() == feeding)
+    {
+      Feeding *f = (Feeding *)(c[ci]);
+      if (f->isEditMode()) {
+        f->incTime();
+        done = true;
+      }
+    }
+    if (!done)
+    {
+      ci++;
+      if (ci > 4)
+        ci = 0;
+//      lcd.clear();          
+      c[ci]->print(&lcd);
+    }
+  }
+  
+  btnDec.tick();
+  if (btnDec.isPress())
+  {
+    Serial.println("btnDec.isPress");
+    bool done = false;
+    if (c[ci]->getType() == feeding)
+    {
+      Feeding *f = (Feeding *)(c[ci]);
+      if (f->isEditMode()) {
+        f->decTime();
+        done = true;
+      }
+    }
+    if (!done)
+    {
+      if (ci == 0)
+        ci = 4;
+       else
+         ci--;
+  //    lcd.clear();         
+      c[ci]->print(&lcd);
+    }
+  }  
+  
   btnMenu.tick();
   if (btnMenu.isPress())
   {
-    if (c[ci].getType() == feeding)
+    Serial.println("btnMenu.isPress");
+
+    switch (c[ci]->getType())
     {
-      Feeding f = (Feeding)c[ci];
-      
+      case feeding:
+        Serial.println("feeding");
+        ((Feeding *)c[ci])->toggleMode();
+        break;
     }
   }
+
   // Если текущему компоненту надо перерисовать себя
-  if (c[ci].isRedrawRequired())
-    c[ci].print(&lcd);
+  if (c[ci]->isRedrawRequired()) 
+  {
+    Serial.println("RedrawRequired");
+    c[ci]->print(&lcd);
+  }
 }
