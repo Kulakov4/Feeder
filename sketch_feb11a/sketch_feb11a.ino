@@ -1,7 +1,7 @@
 #include <GyverButton.h>
 #include <Stepper.h>
 #include <EEPROM.h>
-#include <Component.h>
+#include <TimeManager.h>
 #include <Feeding.h>
 #include <FeedTimer.h>
 
@@ -9,7 +9,6 @@ GButton btnMenu(5);
 GButton btnInc(6);
 GButton btnDec(7);
 
-//LiquidCrystal_I2C lcd(0x27, 16, 2);
 LCD_1602_RUS lcd(0x27, 16, 2);   // Устанавливаем дисплей
 
 const int stepsPerRevolution = 200;   // Количество шагов
@@ -17,29 +16,27 @@ Stepper myStepper(stepsPerRevolution, 8, 9, 10, 11);
 
 DS1302 rtc(2, 3, 4);
 
-FeedTimer f = FeedTimer(&rtc);
-Feeding f1 = Feeding(0);
-Feeding f2 = Feeding(1);
-Feeding f3 = Feeding(2);
-Feeding f4 = Feeding(3);
+// Создаём массив из 4-х объектов-управляющих временем кормления.
+Feeding f[4] = {Feeding(0), Feeding(1), Feeding(2), Feeding(3)};
 
-Component* c[5];
-uint8_t ci = 0;
+// Адреса этих объектов записываем в массив
+TimeHolder* th[4] = {&f[0], &f[1], &f[2], &f[3]};
+
+// Создаём таймер кормления
+FeedTimer ft = FeedTimer(&rtc, th, 4);
+
+TimeManager* c[5] = {&ft, &f[0], &f[1], &f[2], &f[3]};
+byte ci = 0;
 
 void setup() {
   // в ячейке 1023 должен быть записан флажок, если его нет - делаем (ПЕРВЫЙ ЗАПУСК)
   if (EEPROM.read(1023) != 5) {
     EEPROM.write(1023, 5);
-    for (byte i = 0; i < FEED_AMOUNT; i++) {
+    for (byte i = 0; i < 4; i++) {
       EEPROM.write(i * 2, 0);
       EEPROM.write(i * 2 + 1, 0);
     }
   }
-  c[0] = &f;
-  c[1] = &f1;
-  c[2] = &f2;
-  c[3] = &f3;
-  c[4] = &f4;
   lcd.init();
   myStepper.setSpeed(60);             // Установка скорости 60 об/мин
   Serial.begin(9600);
@@ -50,79 +47,85 @@ void setup() {
 
   // The following lines can be commented out to use the values already stored in the DS1302
   //  rtc.setDOW(FRIDAY);        // Set Day-of-Week to FRIDAY
-  //rtc.setTime(19, 30, 0);     // Set the time to 12:00:00 (24hr format)
+  // rtc.setTime(8, 37, 0);     // Set the time to 12:00:00 (24hr format)
   //  rtc.setDate(6, 8, 2010);   // Set the date to August 6th, 2010
 
+  lcd.clear();
   lcd.backlight();// Включаем подсветку дисплея
 }
+void btnIncTick()
+{
+  btnInc.tick();
+  if ( !( btnInc.isPress() || btnInc.isStep() ) )
+    return;
 
+  Serial.println("btnInc.isClick");
+
+  // Если текущий компонент сейчас в режиме изменения времени
+  if (c[ci]->isEditMode()) {
+    // Увеличиваем в нём время
+    c[ci]->incTime();
+  }
+  else  // Иначе переключаемся на следующий компонент
+  {
+    ci++;
+    if (ci > 4)
+      ci = 0;
+    c[ci]->print(&lcd);
+  }
+}
+
+void btnDecTick()
+{
+  btnDec.tick();
+  if ( !( btnDec.isPress() || btnDec.isStep() ) )
+    return;
+
+  Serial.println("btnDec.isClick");
+
+  // Если текущий компонент сейчас в режиме изменения времени
+  if (c[ci]->isEditMode()) {
+    // Уменьшаем в нём время
+    c[ci]->decTime();
+  }
+  else  // Иначе переключаемся на предыдущий компонент
+  {
+    if (ci == 0)
+      ci = 4;
+    else
+      ci--;
+    c[ci]->print(&lcd);
+  }
+}
+
+void btnMenuTick()
+{
+  btnMenu.tick();
+  if (!btnMenu.isPress())
+    return;
+
+  Serial.println("btnMenu.isPress");
+  // Переключаем текущий компонент в другой режим
+  c[ci]->toggleMode();
+}
 
 void loop() {
-  btnInc.tick();
-  if (btnInc.isPress())
-  {
-    Serial.println("btnInc.isPress");
-    bool done = false;
-    if (c[ci]->getType() == feeding)
-    {
-      Feeding *f = (Feeding *)(c[ci]);
-      if (f->isEditMode()) {
-        f->incTime();
-        done = true;
-      }
-    }
-    if (!done)
-    {
-      ci++;
-      if (ci > 4)
-        ci = 0;
-//      lcd.clear();          
-      c[ci]->print(&lcd);
-    }
-  }
-  
-  btnDec.tick();
-  if (btnDec.isPress())
-  {
-    Serial.println("btnDec.isPress");
-    bool done = false;
-    if (c[ci]->getType() == feeding)
-    {
-      Feeding *f = (Feeding *)(c[ci]);
-      if (f->isEditMode()) {
-        f->decTime();
-        done = true;
-      }
-    }
-    if (!done)
-    {
-      if (ci == 0)
-        ci = 4;
-       else
-         ci--;
-  //    lcd.clear();         
-      c[ci]->print(&lcd);
-    }
-  }  
-  
-  btnMenu.tick();
-  if (btnMenu.isPress())
-  {
-    Serial.println("btnMenu.isPress");
-
-    switch (c[ci]->getType())
-    {
-      case feeding:
-        Serial.println("feeding");
-        ((Feeding *)c[ci])->toggleMode();
-        break;
-    }
-  }
+  /*
+  byte h = 23;
+  byte m = 59;
+  byte s = 59;
+  uint32_t x = h * 3600UL + m * 60UL + s;
+  lcd.setCursor(0, 0);
+  lcd.print(String(x));
+  return;
+  */
+  btnIncTick();
+  btnDecTick();
+  btnMenuTick();
 
   // Если текущему компоненту надо перерисовать себя
-  if (c[ci]->isRedrawRequired()) 
+  if (c[ci]->isRedrawRequired())
   {
-    Serial.println("RedrawRequired");
     c[ci]->print(&lcd);
   }
 }
