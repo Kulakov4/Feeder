@@ -25,6 +25,7 @@ protected:
   void setMode(workMode new_mode);
 
 public:
+  bool foodTime;
   FeedTimer(DS1302 *ds1302, TimeHolder **th, byte count);
   bool isRedrawRequired();
   void print(LCD_1602_RUS *lcd);

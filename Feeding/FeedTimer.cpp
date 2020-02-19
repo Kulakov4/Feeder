@@ -13,6 +13,7 @@ FeedTimer::FeedTimer(DS1302 *ds1302, TimeHolder **th, byte count) : TimeManager(
 
     timeHolders = th;
     timeHolderCount = count;
+	foodTime = false;
 }
 
 void FeedTimer::getTime()
@@ -124,6 +125,7 @@ TimeHolder FeedTimer::getNearestTime()
         if (s > 30)
             x += (60 - s); // Добавляем оставшиеся секунды
     }
+	foodTime = (x <= 1);
 
     // Переводим время из секунд в часы, минуты и секунды
     byte h = x / 3600;

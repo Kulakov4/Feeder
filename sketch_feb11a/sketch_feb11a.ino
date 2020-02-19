@@ -109,15 +109,28 @@ void btnMenuTick()
   c[ci]->toggleMode();
 }
 
+void SwitchOffSpepper() {
+  digitalWrite(8, LOW);
+  digitalWrite(9, LOW);
+  digitalWrite(10, LOW);
+  digitalWrite(11, LOW);
+}
+
+void doFeed(int val)
+{
+  myStepper.step(val);
+  SwitchOffSpepper();
+}
+
 void loop() {
   /*
-  byte h = 23;
-  byte m = 59;
-  byte s = 59;
-  uint32_t x = h * 3600UL + m * 60UL + s;
-  lcd.setCursor(0, 0);
-  lcd.print(String(x));
-  return;
+    byte h = 23;
+    byte m = 59;
+    byte s = 59;
+    uint32_t x = h * 3600UL + m * 60UL + s;
+    lcd.setCursor(0, 0);
+    lcd.print(String(x));
+    return;
   */
   btnIncTick();
   btnDecTick();
@@ -126,6 +139,17 @@ void loop() {
   // Если текущему компоненту надо перерисовать себя
   if (c[ci]->isRedrawRequired())
   {
+    // Может пора кормить?
+    if ((c[ci] == &ft) && ft.foodTime)
+    {
+      lcd.setCursor(0, 0);
+      lcd.print("Выдача корма    ");
+      lcd.setCursor(0, 1);
+      lcd.print("                ");
+      Serial.println("Begin feed");
+      doFeed(stepsPerRevolution * 10);
+      Serial.println("End feed");
+    }
     c[ci]->print(&lcd);
   }
 }
